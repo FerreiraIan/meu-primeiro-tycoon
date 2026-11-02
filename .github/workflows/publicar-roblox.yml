@@ -7,32 +7,25 @@ on:
     branches:
       - main
     paths:
-      - Mini_Tycoon_Roblox.rbxlx
+      - Base_Tycoon.rbxl
       - .github/workflows/publicar-roblox.yml
 
 jobs:
   publicar:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Baixar arquivos do repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Verificar arquivo do jogo
-        run: test -f Mini_Tycoon_Roblox.rbxlx
+      - name: Verificar arquivo
+        run: test -f Base_Tycoon.rbxl
 
       - name: Publicar no Roblox
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
         run: |
-          if [ -z "$ROBLOX_API_KEY" ]; then
-            echo "::error::Chave ROBLOX_API_KEY nao encontrada"
-            exit 1
-          fi
-
           curl --fail-with-body --silent --show-error --location \
             --request POST \
             "https://apis.roblox.com/universes/v1/10774381376/places/120347986854462/versions?versionType=Published" \
             --header "x-api-key: $ROBLOX_API_KEY" \
-            --header "Content-Type: application/xml" \
-            --data-binary "@Mini_Tycoon_Roblox.rbxlx"
+            --header "Content-Type: application/octet-stream" \
+            --data-binary "@Base_Tycoon.rbxl"
