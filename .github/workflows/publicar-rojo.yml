@@ -1,0 +1,70 @@
+name: Publicar Books of Chaos (Rojo)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - default.project.json
+      - .github/workflows/publicar-rojo.yml
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar o Rojo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v7.4.4 --repo rojo-rbx/rojo --pattern '*linux*' --dir rojo-dl
+          unzip -o rojo-dl/*.zip -d rojo-bin
+          chmod +x rojo-bin/rojo
+          ./rojo-bin/rojo --version
+
+      - name: Montar o arquivo do jogo
+        run: ./rojo-bin/rojo build default.project.json --output BooksOfChaos.rbxl
+
+      - name: Publicar no Roblox com tentativas
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+        shell: bash
+        run: |
+          URL="https://apis.roblox.com/universes/v1/10774381376/places/120347986854462/versions?versionType=Published"
+
+          for tentativa in 1 2 3 4 5 6; do
+            echo "Tentativa $tentativa de 6"
+
+            codigo=$(curl --silent --show-error \
+              --output resposta.txt \
+              --write-out "%{http_code}" \
+              --request POST \
+              "$URL" \
+              --header "x-api-key: $ROBLOX_API_KEY" \
+              --header "Content-Type: application/octet-stream" \
+              --data-binary "@BooksOfChaos.rbxl")
+
+            cat resposta.txt
+
+            if [ "$codigo" -ge 200 ] && [ "$codigo" -lt 300 ]; then
+              echo "Publicacao concluida!"
+              exit 0
+            fi
+
+            if [[ "$codigo" =~ ^(409|429|500|502|503|504)$ ]]; then
+              if [ "$tentativa" -lt 6 ]; then
+                espera=$((tentativa * 20))
+                echo "Roblox indisponivel. Aguardando $espera segundos..."
+                sleep "$espera"
+              fi
+            else
+              echo "Erro que nao sera repetido: HTTP $codigo"
+              exit 1
+            fi
+          done
+
+          echo "Todas as tentativas falharam."
+          exit 1
