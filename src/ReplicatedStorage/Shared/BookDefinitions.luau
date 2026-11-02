@@ -4,12 +4,12 @@
 local Books = {
 	flames = {
 		Id = "flames",
-		Name = "Livro das Chamas",
+		Name = "Book of Flames",
 		Rarity = "Common",
-		Description = "Um livro antigo que arde com fogo mágico.",
+		Description = "An ancient book that burns with magical fire.",
 		Acquisition = "Starter",
 		Abilities = {
-			{ Id = "fireball", Name = "Bola de Fogo", Type = "Projectile", Cooldown = 3, EnergyCost = 10, Damage = 20 },
+			{ Id = "fireball", Name = "Fireball", Type = "Projectile", Cooldown = 3, EnergyCost = 10, Damage = 20 },
 		},
 	},
 }

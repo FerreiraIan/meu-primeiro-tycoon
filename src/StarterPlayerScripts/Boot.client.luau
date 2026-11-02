@@ -12,7 +12,7 @@ local Books = require(Shared:WaitForChild("BookDefinitions"))
 local gui = Instance.new("ScreenGui")
 gui.Name = "GameUI"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
+gui.IgnoreGuiInset = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local scale = Instance.new("UIScale")
@@ -92,11 +92,11 @@ xpLabel.Text = ""
 xpLabel.ZIndex = 2
 xpLabel.Parent = barBack
 
-levelLabel.Text = "Carregando..."
+levelLabel.Text = "Loading..."
 
 Remotes.Get("DataUpdated").OnClientEvent:Connect(function(snapshot)
-	levelLabel.Text = "Nv " .. snapshot.Level
-	coinsLabel.Text = "Moedas: " .. snapshot.Coins
+	levelLabel.Text = "Lv " .. snapshot.Level
+	coinsLabel.Text = "Coins: " .. snapshot.Coins
 	xpLabel.Text = snapshot.XP .. " / " .. snapshot.XPNeeded .. " XP"
 
 	local fraction = math.clamp(snapshot.XP / snapshot.XPNeeded, 0, 1)
@@ -107,7 +107,7 @@ Remotes.Get("DataUpdated").OnClientEvent:Connect(function(snapshot)
 		bookLabel.Text = book.Name
 		bookLabel.TextColor3 = Rarity.Get(book.Rarity).Color
 	else
-		bookLabel.Text = "Sem livro"
+		bookLabel.Text = "No book"
 	end
 end)
 

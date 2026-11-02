@@ -98,7 +98,7 @@ local function loadPlayer(player)
 		profile.CanSave = false
 	else
 		-- Nunca deixamos o jogador jogar sem carregar: salvar por cima apagaria o progresso.
-		player:Kick("Não foi possível carregar seus dados. Entre novamente em instantes. Seu progresso está seguro.")
+		player:Kick("We could not load your data. Please rejoin in a moment. Your progress is safe.")
 		return
 	end
 
