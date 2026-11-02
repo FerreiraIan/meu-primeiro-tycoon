@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<roblox version="4">
+  <Item class="DataModel" referent="RBX0">
+    <Properties>
+      <string name="Name">MiniTycoon</string>
+    </Properties>
+    <Item class="Workspace" referent="RBX1">
+      <Properties>
+        <string name="Name">Workspace</string>
+        <bool name="FilteringEnabled">true</bool>
+      </Properties>
+    </Item>
+    <Item class="ServerScriptService" referent="RBX2">
+      <Properties><string name="Name">ServerScriptService</string></Properties>
+      <Item class="Script" referent="RBX3">
+        <Properties>
+          <string name="Name">MiniTycoonServer</string>
+          <bool name="Disabled">false</bool>
+          <ProtectedString name="Source"><![CDATA[-- MINI TYCOON: Fábrica Básica
+-- Coloque este Script em ServerScriptService.
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local bases = {}
+local claimed = {}
+
+local function makePart(parent, name, size, position, color, material)
+    local part = Instance.new("Part")
+    part.Name = name
+    part.Size = size
+    part.Position = position
+    part.Anchored = true
+    part.Color = color
+    part.Material = material or Enum.Material.SmoothPlastic
+    part.TopSurface = Enum.SurfaceType.Smooth
+    part.BottomSurface = Enum.SurfaceType.Smooth
+    part.Parent = parent
+    return part
+end
+
+local function makeLabel(part, text)
+    local gui = Instance.new("BillboardGui")
+    gui.Size = UDim2.fromOffset(180, 48)
+    gui.StudsOffset = Vector3.new(0, 3, 0)
+    gui.AlwaysOnTop = true
+    gui.Parent = part
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0.25
+    label.Parent = gui
+end
+
+local function addCash(player, amount)
+    local stats = player:FindFirstChild("leaderstats")
+    local cash = stats and stats:FindFirstChild("Dinheiro")
+    if cash then
+        cash.Value += amount
+    end
+end
+
+local function createDropper(base, player, position, value)
+    local machine = makePart(base, "Gerador", Vector3.new(6, 4, 5), position, Color3.fromRGB(35, 150, 220), Enum.Material.Metal)
+    makeLabel(machine, "GERADOR")
+
+    task.spawn(function()
+        while machine.Parent and player.Parent do
+            task.wait(3)
+            if not machine.Parent then break end
+            local drop = Instance.new("Part")
+            drop.Name = "DinheiroGerado"
+            drop.Size = Vector3.new(1.5, 1.5, 1.5)
+            drop.Position = machine.Position + Vector3.new(0, -1.5, 0)
+            drop.Color = Color3.fromRGB(70, 255, 100)
+            drop.Material = Enum.Material.Neon
+            drop.Anchored = false
+            drop.CanCollide = true
+            drop:SetAttribute("Valor", value)
+            drop.Parent = base
+            drop.AssemblyLinearVelocity = Vector3.new(0, 0, -12) -- leva o dinheiro ate o coletor
+            game:GetService("Debris"):AddItem(drop, 20)
+        end
+    end)
+end
+
+local function createBase(index)
+    local model = Instance.new("Model")
+    model.Name = "Tycoon_" .. index
+    model.Parent = Workspace
+
+    local x = (index - 1) * 55
+    local floor = makePart(model, "Piso", Vector3.new(42, 1, 42), Vector3.new(x, 0, 0), Color3.fromRGB(75, 75, 85), Enum.Material.Concrete)
+    local collector = makePart(model, "Coletor", Vector3.new(10, 1, 8), Vector3.new(x, 1, -13), Color3.fromRGB(40, 220, 100), Enum.Material.Neon)
+    makeLabel(collector, "COLETOR: toque para receber")
+
+    local ownerSign = makePart(model, "PlacaDono", Vector3.new(8, 1, 3), Vector3.new(x, 3, -19), Color3.fromRGB(35, 35, 45))
+    makeLabel(ownerSign, "TYCOON LIVRE")
+
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "SpawnTycoon"
+    spawn.Size = Vector3.new(6, 1, 6)
+    spawn.Position = Vector3.new(x, 1, 15)
+    spawn.Anchored = true
+    spawn.Neutral = true
+    spawn.Parent = model
+
+    local stored = 0
+    local touching = {}
+    collector.Touched:Connect(function(hit)
+        local character = hit.Parent
+        local player = Players:GetPlayerFromCharacter(character)
+        if player and claimed[player] == model and not touching[player] then
+            touching[player] = true
+            if stored > 0 then
+                addCash(player, stored)
+                stored = 0
+                collector.Color = Color3.fromRGB(40, 220, 100)
+            end
+            task.wait(0.5)
+            touching[player] = nil
+        end
+    end)
+
+    local function setupFor(player)
+        claimed[player] = model
+        ownerSign.Name = player.Name .. "_Placa"
+        makeLabel(ownerSign, "DONO: " .. player.Name)
+        createDropper(model, player, Vector3.new(x, 3, 0), 5)
+
+        local buyPad = makePart(model, "ComprarGerador2", Vector3.new(7, 1, 7), Vector3.new(x + 12, 1.5, 8), Color3.fromRGB(255, 190, 35), Enum.Material.Neon)
+        makeLabel(buyPad, "COMPRAR GERADOR 2\n$50")
+        local prompt = Instance.new("ProximityPrompt")
+        prompt.ActionText = "Comprar por $50"
+        prompt.ObjectText = "Novo gerador"
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = 12
+        prompt.Parent = buyPad
+        prompt.Triggered:Connect(function(buyer)
+            if buyer ~= player or buyPad:GetAttribute("Comprado") then return end
+            local cash = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Dinheiro")
+            if cash and cash.Value >= 50 then
+                cash.Value -= 50
+                buyPad:SetAttribute("Comprado", true)
+                buyPad:Destroy()
+                createDropper(model, player, Vector3.new(x + 12, 3, 0), 12)
+            end
+        end)
+
+        -- Converte os cubos gerados em dinheiro guardado quando chegam ao coletor.
+        model.ChildAdded:Connect(function(child)
+            if child.Name == "DinheiroGerado" then
+                child.Touched:Connect(function(part)
+                    if part == collector and child.Parent then
+                        stored += child:GetAttribute("Valor") or 5
+                        child:Destroy()
+                        collector.Color = Color3.fromRGB(255, 220, 50)
+                    end
+                end)
+            end
+        end)
+    end
+
+    return model, setupFor
+end
+
+for i = 1, 4 do
+    local model, setup = createBase(i)
+    table.insert(bases, {model = model, setup = setup})
+end
+
+Players.PlayerAdded:Connect(function(player)
+    local stats = Instance.new("Folder")
+    stats.Name = "leaderstats"
+    stats.Parent = player
+
+    local cash = Instance.new("IntValue")
+    cash.Name = "Dinheiro"
+    cash.Value = 0
+    cash.Parent = stats
+
+    for _, base in ipairs(bases) do
+        local occupied = false
+        for _, ownerBase in pairs(claimed) do
+            if ownerBase == base.model then occupied = true break end
+        end
+        if not occupied then
+            base.setup(player)
+            break
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    claimed[player] = nil
+end)
+]]></ProtectedString>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="StarterPlayer" referent="RBX4">
+      <Properties><string name="Name">StarterPlayer</string></Properties>
+      <Item class="StarterPlayerScripts" referent="RBX5">
+        <Properties><string name="Name">StarterPlayerScripts</string></Properties>
+        <Item class="LocalScript" referent="RBX6">
+          <Properties>
+            <string name="Name">TycoonHUD</string>
+            <bool name="Disabled">false</bool>
+            <ProtectedString name="Source"><![CDATA[-- Interface simples do Mini Tycoon
+-- Coloque este LocalScript em StarterPlayer > StarterPlayerScripts.
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TycoonHUD"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.fromOffset(210, 58)
+panel.Position = UDim2.new(0, 12, 0, 12)
+panel.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+panel.BackgroundTransparency = 0.12
+panel.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = panel
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.fromScale(1, 1)
+label.BackgroundTransparency = 1
+label.Font = Enum.Font.GothamBold
+label.TextColor3 = Color3.fromRGB(100, 255, 130)
+label.TextScaled = true
+label.Text = "$ 0"
+label.Parent = panel
+
+local cash = player:WaitForChild("leaderstats"):WaitForChild("Dinheiro")
+local function update()
+    label.Text = "$ " .. tostring(cash.Value)
+end
+cash:GetPropertyChangedSignal("Value"):Connect(update)
+update()
+]]></ProtectedString>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
